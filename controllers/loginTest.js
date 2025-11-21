@@ -1,39 +1,24 @@
 import axios from "axios";
 
 // ===============================
-// UNIVERSAL JSONP PARSER (SAFE)
+// EXTRACT JSON FROM JSONP
 // ===============================
 function extractJsonFromJsonp(raw, callback) {
-    try {
-        raw = raw.trim();
+    const pattern = new RegExp(callback + '\\(\\"(.*)\\"\\);', 's');
+    const match = raw.match(pattern);
 
-        const prefix = `${callback}(`;
-        const suffix = `);`;
-
-        if (!raw.startsWith(prefix) || !raw.endsWith(suffix)) {
-            console.log("❌ JSONP Extract Failed — Format mismatch");
-            console.log("RAW:", raw);
-            return null;
-        }
-
-        // Get inside content
-        let jsonPart = raw.substring(prefix.length, raw.length - suffix.length).trim();
-
-        // If content is string-wrapped JSON → " {\"a\":1} "
-        if (
-            (jsonPart.startsWith('"') && jsonPart.endsWith('"')) ||
-            (jsonPart.startsWith("'") && jsonPart.endsWith("'"))
-        ) {
-            jsonPart = jsonPart.slice(1, -1); // remove outer quotes
-            jsonPart = jsonPart.replace(/\\"/g, '"'); // unescape quotes
-            jsonPart = jsonPart.replace(/\\'/g, "'"); // unescape single quotes
-        }
-
-        return JSON.parse(jsonPart);
-
-    } catch (err) {
-        console.log("❌ JSONP PARSE ERROR:", err);
+    if (!match || !match[1]) {
+        console.log("❌ JSONP Extract Failed");
         console.log("RAW:", raw);
+        return null;
+    }
+
+    const cleaned = match[1].replace(/\\"/g, '"');
+
+    try {
+        return JSON.parse(cleaned);
+    } catch (e) {
+        console.log("❌ JSON parse error:", e);
         return null;
     }
 }
@@ -65,14 +50,14 @@ export async function testLogin(req, res) {
     }
 
     const sessionID = loginJson.SessionID;
-    console.log("✔ Login Successful. SessionID:", sessionID);
+    console.log("Login Successful. SessionID:", sessionID);
 
     // ================================
-    // SECOND API CALL: CreateClient
+    // SECOND API CALL (Example: CreateClient)
     // ================================
     const clientData = {
         FirstName: "Moazzam Hussain",
-        Username: "moazzam123" + Date.now(),
+        Username: "moazzam123" + Date.now(), // unique username
         Password: "Test@1234",
         InvestorPassword: "Invest@1234",
         Country: "Pakistan",
@@ -95,7 +80,7 @@ export async function testLogin(req, res) {
         return res.json({ status: false, msg: "CreateClient Parse Failed", raw: createResp.data });
     }
 
-    console.log("✔ Client Created Successfully");
+    console.log("Client Created Successfully");
 
     // ================================
     // COMBINED RESPONSE
