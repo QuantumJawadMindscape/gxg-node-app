@@ -39,6 +39,7 @@ export async function testLogin(req, res) {
         const sessionID = loginJson.SessionID;
         console.log("Login successful. SessionID:", sessionID);
 
+        
         // ===============================
         // SECOND API CALL - CREATE CLIENT
         // ===============================
