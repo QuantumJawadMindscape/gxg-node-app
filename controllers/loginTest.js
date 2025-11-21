@@ -9,7 +9,7 @@ export async function testLogin(req, res) {
     let browser;
     try {
         // Launch headless browser
-        browser = await puppeteer.launch({ headless: true });
+        browser = await puppeteer.launch({ headless: true ,  executablePath: "/usr/bin/chromium-browser",  args: ["--no-sandbox", "--disable-setuid-sandbox"]});
         const page = await browser.newPage();
 
         // Set browser headers
@@ -39,7 +39,7 @@ export async function testLogin(req, res) {
         const sessionID = loginJson.SessionID;
         console.log("Login successful. SessionID:", sessionID);
 
-        
+
         // ===============================
         // SECOND API CALL - CREATE CLIENT
         // ===============================
