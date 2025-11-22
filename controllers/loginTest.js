@@ -13,7 +13,17 @@ export async function testLogin(req, res) {
     };
 
     try {
-        browser = await puppeteer.launch({ headless: true });
+        browser = await puppeteer.launch({ 
+            executablePath: '/usr/bin/chromium-browser',
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu'
+            ]
+        });
+        
         const page = await browser.newPage();
 
         await page.setExtraHTTPHeaders({
