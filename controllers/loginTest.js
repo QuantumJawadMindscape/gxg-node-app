@@ -1,5 +1,4 @@
-import puppeteer from "puppeteer-core";
-import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer";
 
 // ===========================================================
 // MAIN FUNCTION — Login + CreateClient + CreateAccount
@@ -14,13 +13,13 @@ export async function testLogin(req, res) {
     };
 
     try {
-        // browser = await puppeteer.launch({ headless: true });
-         const browser = await puppeteer.launch({
-            args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath(),
-            headless: chromium.headless, 
+        // Launch full Puppeteer (bundled Chromium)
+        browser = await puppeteer.launch({
+            headless: true,
+            args: ["--no-sandbox", "--disable-setuid-sandbox"],
+            defaultViewport: null
         });
+
         const page = await browser.newPage();
 
         await page.setExtraHTTPHeaders({
@@ -39,29 +38,24 @@ export async function testLogin(req, res) {
 
         await page.goto(loginUrl, { waitUntil: "networkidle0" });
         const loginRaw = await page.evaluate(() => document.body.innerText);
-
         const loginJson = extractJsonFromJsonp(loginRaw, "handleLogin");
 
         if (!loginJson?.SessionID) {
             steps.login.success = false;
             steps.login.message = "Login failed — SessionID missing";
             steps.login.data = loginRaw;
-
             return res.json({ status: false, steps });
         }
 
         const sessionID = loginJson.SessionID;
-
         steps.login.success = true;
         steps.login.message = "Login successful";
         steps.login.data = loginJson;
-
 
         // ===========================================================
         // STEP 2 — CREATE CLIENT
         // ===========================================================
         const clientUsername = "Client" + Date.now();
-
         const clientUrl =
             `https://apis.gxg.app/BOWCF/Backoffice.svc/CreateClient?` +
             `SessionID=${sessionID}` +
@@ -75,12 +69,10 @@ export async function testLogin(req, res) {
 
         await page.goto(clientUrl, { waitUntil: "networkidle0" });
         const clientRaw = await page.evaluate(() => document.body.innerText);
-
         let clientJson = extractJsonFromJsonp(clientRaw, "handleCreateClient");
 
         let clientId = null;
 
-        // CASE 1: JSONP returned structured JSON
         if (clientJson && typeof clientJson === "object") {
             clientId =
                 clientJson.ClientID ||
@@ -88,20 +80,14 @@ export async function testLogin(req, res) {
                 clientJson.Client_Id;
         }
 
-        // CASE 2: JSONP returned a STRING → "14787"
         if (!clientId && typeof clientJson === "string") {
-            let cleaned = clientJson.replace(/"/g, "").trim();
-            if (/^\d+$/.test(cleaned)) {
-                clientId = parseInt(cleaned);
-            }
+            const cleaned = clientJson.replace(/"/g, "").trim();
+            if (/^\d+$/.test(cleaned)) clientId = parseInt(cleaned);
         }
 
-        // CASE 3: Raw string — strip everything except digits
         if (!clientId) {
-            let cleaned = clientRaw.replace(/[^0-9]/g, "").trim();
-            if (/^\d+$/.test(cleaned)) {
-                clientId = parseInt(cleaned);
-            }
+            const cleaned = clientRaw.replace(/[^0-9]/g, "").trim();
+            if (/^\d+$/.test(cleaned)) clientId = parseInt(cleaned);
         }
 
         if (!clientId) {
@@ -114,7 +100,6 @@ export async function testLogin(req, res) {
         steps.createClient.success = true;
         steps.createClient.message = "Client created successfully";
         steps.createClient.data = { clientId, raw: clientRaw };
-
 
         // ===========================================================
         // STEP 3 — CREATE ACCOUNT
@@ -135,29 +120,21 @@ export async function testLogin(req, res) {
             .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(accountData[k])}`)
             .join("&");
 
-        const accUrl =
-            `https://apis.gxg.app/BOWCF/Backoffice.svc/CreateAccount?${accQuery}`;
-
+        const accUrl = `https://apis.gxg.app/BOWCF/Backoffice.svc/CreateAccount?${accQuery}`;
         await page.goto(accUrl, { waitUntil: "networkidle0" });
 
         const accRaw = await page.evaluate(() => document.body.innerText);
-
         let accJson = extractJsonFromJsonp(accRaw, "handleCreateAccount");
 
-        let accountId =
-            accJson?.AccountID ||
-            accJson?.data?.AccountID ||
-            null;
+        let accountId = accJson?.AccountID || accJson?.data?.AccountID || null;
 
-        // CASE 2: String
         if (!accountId && typeof accJson === "string") {
-            let cleaned = accJson.replace(/"/g, "").trim();
+            const cleaned = accJson.replace(/"/g, "").trim();
             if (/^\d+$/.test(cleaned)) accountId = parseInt(cleaned);
         }
 
-        // CASE 3: Raw numeric
         if (!accountId) {
-            let cleaned = accRaw.replace(/[^0-9]/g, "").trim();
+            const cleaned = accRaw.replace(/[^0-9]/g, "").trim();
             if (/^\d+$/.test(cleaned)) accountId = parseInt(cleaned);
         }
 
@@ -172,22 +149,17 @@ export async function testLogin(req, res) {
         steps.createAccount.message = "Account created successfully";
         steps.createAccount.data = { accountId, raw: accRaw };
 
-
         // ===========================================================
         // FINAL RESPONSE
         // ===========================================================
-        return res.json({
-            status: true,
-            steps
-        });
+        return res.json({ status: true, steps });
 
     } catch (err) {
         return res.json({ status: false, error: err.toString(), steps });
-    }finally {
-    if (browser) await browser.close();
+    } finally {
+        if (browser) await browser.close();
+    }
 }
-}
-
 
 // ===========================================================
 // JSONP PARSER
@@ -197,7 +169,7 @@ function extractJsonFromJsonp(raw, callback) {
     const match = raw.match(pattern);
     if (!match || !match[1]) return null;
 
-    let cleaned = match[1].replace(/\\"/g, '"');
+    const cleaned = match[1].replace(/\\"/g, '"');
 
     try {
         return JSON.parse(cleaned);
@@ -205,4 +177,3 @@ function extractJsonFromJsonp(raw, callback) {
         return cleaned;
     }
 }
-
