@@ -1,4 +1,4 @@
-import puppeteer from "puppeteer";
+import { chromium } from "playwright";
 
 // ===========================================================
 // MAIN FUNCTION — Login + CreateClient + CreateAccount
@@ -13,14 +13,10 @@ export async function testLogin(req, res) {
     };
 
     try {
-        // Launch full Puppeteer (bundled Chromium)
-        browser = await puppeteer.launch({
-            headless: true,
-            args: ["--no-sandbox", "--disable-setuid-sandbox"],
-            defaultViewport: null
-        });
-
-        const page = await browser.newPage();
+        // Launch Playwright Chromium
+        browser = await chromium.launch({ headless: true });
+        const context = await browser.newContext();
+        const page = await context.newPage();
 
         await page.setExtraHTTPHeaders({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
@@ -36,8 +32,8 @@ export async function testLogin(req, res) {
             "https://apis.gxg.app/BOWCF/Backoffice.svc/BackofficeLogin?" +
             "username=gxgfff&password=haier9696&callback=handleLogin";
 
-        await page.goto(loginUrl, { waitUntil: "networkidle0" });
-        const loginRaw = await page.evaluate(() => document.body.innerText);
+        await page.goto(loginUrl, { waitUntil: "networkidle" });
+        const loginRaw = await page.textContent("body");
         const loginJson = extractJsonFromJsonp(loginRaw, "handleLogin");
 
         if (!loginJson?.SessionID) {
@@ -67,12 +63,11 @@ export async function testLogin(req, res) {
             `&ParentID=8564` +
             `&callback=handleCreateClient`;
 
-        await page.goto(clientUrl, { waitUntil: "networkidle0" });
-        const clientRaw = await page.evaluate(() => document.body.innerText);
+        await page.goto(clientUrl, { waitUntil: "networkidle" });
+        const clientRaw = await page.textContent("body");
         let clientJson = extractJsonFromJsonp(clientRaw, "handleCreateClient");
 
         let clientId = null;
-
         if (clientJson && typeof clientJson === "object") {
             clientId =
                 clientJson.ClientID ||
@@ -121,9 +116,9 @@ export async function testLogin(req, res) {
             .join("&");
 
         const accUrl = `https://apis.gxg.app/BOWCF/Backoffice.svc/CreateAccount?${accQuery}`;
-        await page.goto(accUrl, { waitUntil: "networkidle0" });
+        await page.goto(accUrl, { waitUntil: "networkidle" });
 
-        const accRaw = await page.evaluate(() => document.body.innerText);
+        const accRaw = await page.textContent("body");
         let accJson = extractJsonFromJsonp(accRaw, "handleCreateAccount");
 
         let accountId = accJson?.AccountID || accJson?.data?.AccountID || null;
