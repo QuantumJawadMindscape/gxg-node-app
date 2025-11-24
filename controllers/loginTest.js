@@ -1,4 +1,4 @@
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 
 // ===========================================================
@@ -19,7 +19,7 @@ export async function testLogin(req, res) {
             args: chromium.args,
             defaultViewport: chromium.defaultViewport,
             executablePath: await chromium.executablePath(),
-            headless: true,
+            headless: chromium.headless, 
         });
         const page = await browser.newPage();
 
@@ -183,9 +183,9 @@ export async function testLogin(req, res) {
 
     } catch (err) {
         return res.json({ status: false, error: err.toString(), steps });
-    } finally {
-        if (browser) await browser.close();
-    }
+    }finally {
+    if (browser) await browser.close();
+}
 }
 
 
@@ -202,6 +202,7 @@ function extractJsonFromJsonp(raw, callback) {
     try {
         return JSON.parse(cleaned);
     } catch {
-        return cleaned; // return raw string if not JSON
+        return cleaned;
     }
 }
+
