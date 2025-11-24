@@ -14,7 +14,7 @@ export async function testLogin(req, res) {
   try {
     // Launch Chromium
     browser = await chromium.launch({
-      headless: "new",
+      headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
     const context = await browser.newContext();
